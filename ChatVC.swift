@@ -5,7 +5,7 @@
 //  Created by Xin Yu on 11/18/17.
 //  Copyright © 2017 Xin Yu. All rights reserved.
 //
-
+/*
 import UIKit
 import TwilioChatClient
 
@@ -240,4 +240,148 @@ extension ChatVC: UITableViewDataSource {
             return cell
     }
 }
+*/
+
+
+import UIKit
+
+class ChatVC: UIViewController, UITableViewDataSource, UITableViewDelegate{
+    @IBOutlet weak var itemTable2: UITableView!
+    fileprivate var items2 : Array<Item>!
+    fileprivate var contacts : Array<Item>!
+    
+    
+    override func viewDidLoad() {
+        super.viewDidLoad()
+        // Do any additional setup after loading the view, typically from a nib.
+        //reloadTableView()
+        
+    }
+    
+    override func viewWillAppear(_ animated: Bool) {
+        super.viewWillAppear(animated)
+        reloadTableView()
+       
+    }
+    
+    func reloadTableView(){
+        
+        PostsManager.readPostsWithHandler{
+            (items2 : Array<Item>?, error: AnyObject?) in
+            
+            self.items2 = items2
+            // create contacts from the items retrieved from the server
+            self.contacts = self.items2.filterDuplicates{$0.cSeller == $1.cSeller && $0.cPhone == $1.cPhone}
+            // load list of contacts async
+            DispatchQueue.main.async(
+                execute: {
+                    () -> Void in
+                    
+                    // Background Task here
+                    var bTask : UIBackgroundTaskIdentifier = UIBackgroundTaskInvalid
+                    bTask = UIApplication.shared.beginBackgroundTask(expirationHandler: {
+                        UIApplication.shared.endBackgroundTask(bTask)
+                        bTask  = UIBackgroundTaskInvalid
+                        print("expirationHandler Termination")
+                        
+                    })
+                    // reload tableview data
+                    self.itemTable2.reloadData()
+                    
+                    UIApplication.shared.endBackgroundTask(bTask)
+                    bTask  = UIBackgroundTaskInvalid
+                    
+                    print("Background Done 2")
+                    
+            })
+            
+            
+        }
+        
+    }
+    // UITableViewDataSource Delegate Method
+    func numberOfSections(in tableView: UITableView) -> Int {
+        return 1
+    }
+     // UITableViewDataSource Delegate Method
+    func tableView(_ tableView: UITableView, numberOfRowsInSection section: Int) -> Int {
+        if let contacts = contacts{
+            return contacts.count
+            //print(items.count)
+        }
+        return 0
+        /*if let items2 = items2{
+            return items2.count
+            //print(items.count)
+        }
+        return 0*/
+    }
+    
+    func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        
+        // tableview cell subtitle style
+        let cell : UITableViewCell = tableView.dequeueReusableCell(withIdentifier: "ContactCell", for: indexPath)
+        
+        let item : Item = self.contacts[(indexPath as NSIndexPath).row]
+        
+        cell.detailTextLabel?.text = item.cPhone
+        cell.textLabel?.text = item.cSeller
+        
+        return cell
+        
+    }
+    
+    
+    // In a storyboard-based application, you will often want to do a little preparation before navigation
+    override func prepare(for segue: UIStoryboardSegue, sender: Any?) {
+        // Get the new view controller using segue.destinationViewController.
+        // Pass the selected object to the new view controller.
+        if let cell = sender as? UITableViewCell {
+            let i = itemTable2.indexPath(for: cell)?.row
+            if segue.identifier == "ToSMS2" {
+                let vc = segue.destination as! SMSVC
+                vc.pickedItem = contacts[i!]
+            }
+        }
+    }
+    
+
+}
+// extension to filter out the duplicates in an array
+extension Array {
+    
+    func filterDuplicates( includeElement: @escaping (_ lhs:Element, _ rhs:Element) -> Bool) -> [Element]{
+        var results = [Element]()
+        
+        forEach { (element) in
+            let existingElements = results.filter {
+                return includeElement(element, $0)
+            }
+            if existingElements.count == 0 {
+                results.append(element)
+            }
+        }
+        
+        return results
+    }
+}
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
